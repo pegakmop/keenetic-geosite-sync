@@ -1,0 +1,30 @@
+{
+	"baseUrl": "https://raw.githubusercontent.com/v2fly/domain-list-community/master/data/",
+	"prefix": "domain-list",
+	"retries": 3,
+	"maxEntriesPerGroup": 300,
+	"routeInterface": "Wireguard0",
+	"timeoutMs": 20000,
+	"dryRun": false,
+	"initialDomains": [
+		"Cloudflare",
+		"Facebook",
+		"Google Gemini",
+		"Google Play",
+		"Instagram",
+		"Java",
+		"JetBrains",
+		"Linkedin",
+		"Notion",
+		"OpenAI",
+		"SoundCloud",
+		"SpeedTest",
+		"Spotify",
+		"Telegram",
+		"TikTok",
+		"Twitter",
+		"WhatsApp",
+		"Xbox",
+		"YouTube"
+	]
+}

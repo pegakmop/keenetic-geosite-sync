@@ -1,0 +1,4 @@
+include:other
+domain:example.com @ru
+full:foo.bar
+example.net
