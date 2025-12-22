@@ -108,7 +108,7 @@ curl http://192.168.1.1:3939/clean
 ## Автозапуск через Entware
 
 ```bash
-# Создание загрузочного скрипта (путь как в примерах выше)
+# Создание загрузочного скрипта
 mkdir -p /opt/scripts
 cp /opt/keenetic-geosite-sync/scripts/geosite-sync.sh /opt/scripts/geosite-sync.sh
 chmod +x /opt/scripts/geosite-sync.sh
