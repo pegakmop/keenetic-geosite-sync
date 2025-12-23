@@ -7,7 +7,7 @@
 	},
 	"files": {
 		"ignoreUnknown": true,
-		"includes": ["**/*.{ts,tsx,js,jsx,json}", "!flat-design/*", "!dist", "!node_modules"]
+		"includes": ["**/*.{ts,tsx,js,jsx,json}", "!scripts", "!dist", "!node_modules"]
 	},
 	"formatter": {
 		"enabled": true,

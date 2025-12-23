@@ -105,6 +105,16 @@ curl http://192.168.1.1:3939/sync
 curl http://192.168.1.1:3939/clean
 ```
 
+## Автокомплит доменов в веб-интерфейсе Keenetic OS
+
+Для удобного заполнения списков доменов можно поставить юзерскрипт Tampermonkey `scripts/tampermonkey.js`.
+
+1. Установите расширение [Tampermonkey](https://www.tampermonkey.net/).
+2. Создайте новый скрипт и вставьте содержимое `scripts/tampermonkey.js`.
+3. Откройте страницу `http://192.168.1.1/staticRoutes/dns` — появится автодополнение по именам из `v2fly/domain-list-community`.
+
+![](./assets/autocomplete.png)
+
 ## Автозапуск через Entware
 
 ```bash
