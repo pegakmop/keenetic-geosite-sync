@@ -71,6 +71,36 @@
 
 ### Шаг 2. Установка на роутере
 
+Ниже два варианта: автоматический (рекомендуемый) через OPKG-репозиторий и ручной (если хотите поставить zip вручную).
+
+#### Автоматическая установка через публичный OPKG-репозиторий (Entware)
+
+Репозиторий: `https://yangirov.github.io/keenetic-geosite-sync/all`  
+Поддерживаемые архитектуры: mipsel, mips, mips64, aarch64, armv7, x86, x86_64, lexra.
+
+```bash
+# Подключение к роутеру
+ssh root@192.168.1.1 -p 222
+
+# Зависимости для HTTPS-загрузки
+opkg update
+opkg install ca-certificates wget-ssl
+opkg remove wget-nossl 2>/dev/null || true
+
+# Подключаем репозиторий
+mkdir -p /opt/etc/opkg
+echo "src/gz kgs https://yangirov.github.io/keenetic-geosite-sync/all" > /opt/etc/opkg/kgs.conf
+
+# Установка пакета
+opkg update
+opkg install keenetic-geosite-sync
+```
+
+После установки файлы окажутся в `/opt/keenetic-geosite-sync`, конфиг — `/opt/keenetic-geosite-sync/config.json`.
+
+<details>
+<summary>Ручная установка</summary>
+
 ```bash
 # Подключение к роутеру по SSH
 ssh root@192.168.1.1 -p 222
@@ -83,9 +113,35 @@ opkg install curl unzip node cron
 cd /opt && curl -L https://github.com/yangirov/keenetic-geosite-sync/releases/latest/download/keenetic-geosite-sync-dist.zip -o /tmp/kgs.zip && mkdir -p /opt/keenetic-geosite-sync && unzip -o /tmp/kgs.zip -d /opt/keenetic-geosite-sync && rm /tmp/kgs.zip
 ```
 
+Далее создайте сервисы вручную:
+
+```bash
+# Создание загрузочного скрипта
+mkdir -p /opt/scripts
+cp /opt/keenetic-geosite-sync/scripts/geosite-sync.sh /opt/scripts/geosite-sync.sh
+chmod +x /opt/scripts/geosite-sync.sh
+
+# Создание сервиса Entware
+cp /opt/keenetic-geosite-sync/scripts/S99geosite-sync /opt/etc/init.d/S99geosite-sync
+chmod +x /opt/etc/init.d/S99geosite-sync
+
+# Запуск сервиса
+/opt/etc/init.d/S99geosite-sync start
+
+# Остановка сервиса
+/opt/etc/init.d/S99geosite-sync stop
+
+# Перезапуск сервиса
+/opt/etc/init.d/S99geosite-sync restart
+
+# Логи сервиса
+/opt/etc/init.d/S99geosite-sync logs
+```
+
 Для проверки без изменений поставьте в конфиге `"dryRun": true`.
 
 Конфиг находится в `/opt/keenetic-geosite-sync/config.json` — отредактируйте его перед запуском.
+</details>
 
 ![](./assets/rules.png)
 
@@ -115,31 +171,6 @@ curl http://192.168.1.1:3939/clean
 
 ![](./assets/autocomplete.png)
 
-## Автозапуск через Entware
-
-```bash
-# Создание загрузочного скрипта
-mkdir -p /opt/scripts
-cp /opt/keenetic-geosite-sync/scripts/geosite-sync.sh /opt/scripts/geosite-sync.sh
-chmod +x /opt/scripts/geosite-sync.sh
-
-# Создание сервиса Entware
-cp /opt/keenetic-geosite-sync/scripts/S99geosite-sync /opt/etc/init.d/S99geosite-sync
-chmod +x /opt/etc/init.d/S99geosite-sync
-
-# Запуск сервиса
-/opt/etc/init.d/S99geosite-sync start
-
-# Остановка сервиса
-/opt/etc/init.d/S99geosite-sync stop
-
-# Перезапуск сервиса
-/opt/etc/init.d/S99geosite-sync restart
-
-# Логи сервиса
-/opt/etc/init.d/S99geosite-sync logs
-```
-
 ## Синхронизация по расписанию
 
 Пример настройки раз в неделю, по субботам в 04:00:
@@ -148,4 +179,14 @@ chmod +x /opt/etc/init.d/S99geosite-sync
 echo '0 4 * * 6 curl -s http://127.0.0.1:3939/sync' >> /opt/etc/crontab
 
 /opt/etc/init.d/S10cron restart 2>/dev/null || true
+```
+
+## Сборка OPKG пакета
+
+Сборка пакета выполняется в GitHub Actions (`.github/workflows/publish.yml`) при пуше тега. Итоговые ipk публикуются в `https://yangirov.github.io/keenetic-geosite-sync/all` вместе с `Packages/Packages.gz`.
+
+Также можно собрать через Docker (для тестирования):
+
+```bash
+docker run --rm -it -v "$PWD":/src -w /src node:20-bookworm bash -lc "apt-get update && apt-get install -y ca-certificates && chmod +x opkg/build.sh && ./opkg/build.sh"
 ```

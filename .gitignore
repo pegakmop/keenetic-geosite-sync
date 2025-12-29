@@ -33,3 +33,5 @@ next-env.d.ts
 
 # build
 dist/
+build/
+openwrt/keys

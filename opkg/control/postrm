@@ -1,0 +1,5 @@
+#!/bin/sh
+
+rm -f /opt/var/run/geosite-sync.pid
+
+exit 0

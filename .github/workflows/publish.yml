@@ -1,0 +1,115 @@
+name: Build and Publish
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install opkg-utils
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates git make python3 gettext-base
+          git clone https://git.yoctoproject.org/opkg-utils /tmp/opkg-utils
+          (cd /tmp/opkg-utils && make && sudo make install)
+
+      - name: Build ipk
+        run: |
+          chmod +x opkg/build.sh
+          ./opkg/build.sh
+
+      - name: Zip dist
+        run: |
+          cd dist
+          zip -r ../keenetic-geosite-sync-dist.zip .
+
+      - name: Prepare OPKG repository
+        run: |
+          rm -rf public && mkdir -p public/all
+          cp build/out/*.ipk public/all/
+          opkg-make-index public/all > public/all/Packages
+          gzip -9fk public/all/Packages
+          # Generate index pages (static listing style)
+          cat > public/all/index.html <<'EOF'
+          <html><head><title>keenetic-geosite-sync repository</title></head><body>
+          <h1>Index of /all/</h1><hr>
+          <pre>
+          <a href="../">../</a>
+          <a href="Packages">Packages</a>
+          <a href="Packages.gz">Packages.gz</a>
+          EOF
+          for f in public/all/*.ipk; do
+            base=$(basename "$f")
+            echo "<a href=\"${base}\">${base}</a>" >> public/all/index.html
+          done
+          cat >> public/all/index.html <<'EOF'
+          </pre>
+          <hr></body></html>
+          EOF
+          cat > public/index.html <<'EOF'
+          <html><head><title>keenetic-geosite-sync</title></head><body>
+          <h1>keenetic-geosite-sync</h1><hr>
+          <a href="all/">all/</a>
+          <hr></body></html>
+          EOF
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts
+          path: |
+            build/out/*.ipk
+            keenetic-geosite-sync-dist.zip
+            public/all/Packages
+            public/all/Packages.gz
+            public/all/index.html
+            public/index.html
+
+      - name: Deploy to gh-pages
+        env:
+          GH_PAGES_DEPLOY_KEY: ${{ secrets.GH_PAGES_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          # decode base64-encoded deploy key from secret
+          echo "$GH_PAGES_DEPLOY_KEY" | base64 -d > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git clone --branch gh-pages git@github.com:${{ github.repository }} gh-pages || (git clone git@github.com:${{ github.repository }} gh-pages && cd gh-pages && git checkout --orphan gh-pages)
+          cd gh-pages
+          # ensure we are on gh-pages and aligned with remote
+          git checkout gh-pages || git checkout -b gh-pages
+          git fetch origin gh-pages || true
+          git reset --hard origin/gh-pages || true
+          rm -rf ./*
+          cp -r ../public/* .
+          git add -A
+          git commit -m "Update repo from Actions ${GITHUB_RUN_ID}" || exit 0
+          git push --force origin gh-pages
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            keenetic-geosite-sync-dist.zip
+            build/out/*.ipk

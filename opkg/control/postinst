@@ -1,0 +1,16 @@
+#!/bin/sh
+
+set -e
+
+mkdir -p /opt/var/log /opt/var/run /opt/scripts /opt/etc/init.d
+
+if [ -x /opt/scripts/geosite-sync.sh ]; then
+	chmod +x /opt/scripts/geosite-sync.sh
+fi
+
+if [ -x /opt/etc/init.d/S99geosite-sync ]; then
+	chmod +x /opt/etc/init.d/S99geosite-sync
+	/opt/etc/init.d/S99geosite-sync restart >/dev/null 2>&1 || true
+fi
+
+exit 0

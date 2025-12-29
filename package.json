@@ -13,7 +13,8 @@
 		"lint:fix": "npx tsc --noEmit && biome check --write --unsafe .",
 		"start": "node dist/index.js",
 		"test": "npm run build && vitest run",
-		"test:watch": "vitest watch"
+		"test:watch": "vitest watch",
+		"release": "./scripts/release.sh"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.3",
