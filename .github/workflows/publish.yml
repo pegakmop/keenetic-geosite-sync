@@ -98,7 +98,8 @@ jobs:
           git checkout gh-pages || git checkout -b gh-pages
           git fetch origin gh-pages || true
           git reset --hard origin/gh-pages || true
-          rm -rf ./*
+          # clean working tree except .git to drop stale files (dotfiles included)
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           cp -r ../public/* .
           git add -A
           git commit -m "Update repo from Actions ${GITHUB_RUN_ID}" || exit 0
