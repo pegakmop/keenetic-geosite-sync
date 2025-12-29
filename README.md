@@ -177,6 +177,9 @@ curl http://192.168.1.1:3939/clean
 Пример настройки раз в неделю, по субботам в 04:00:
 
 ```bash
+opkg update
+opkg install cron
+
 echo '0 4 * * 6 curl -s http://127.0.0.1:3939/sync' >> /opt/etc/crontab
 
 /opt/etc/init.d/S10cron restart 2>/dev/null || true
