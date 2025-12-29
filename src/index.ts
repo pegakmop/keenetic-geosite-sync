@@ -373,6 +373,7 @@ export async function dropAll(cfg: Config): Promise<void> {
 async function main(): Promise<void> {
 	const cmd = process.argv[2];
 	const isDrop = cmd === "clean";
+	const isSyncOnce = cmd === "sync" || cmd === "run";
 	const configPath = path.join(__dirname, "config.json");
 	const cfg = readJson<Config | null>(configPath, null);
 	if (!cfg || !isObject(cfg)) throw new Error(`Config not found or invalid JSON: ${configPath}`);
@@ -382,8 +383,13 @@ async function main(): Promise<void> {
 		return;
 	}
 
+	if (isSyncOnce) {
+		await runConfig(cfg);
+		return;
+	}
+
 	startHttpServer(cfg, { run: runConfig, drop: dropAll });
-	await runConfig(cfg);
+	console.log("[serve] waiting for /sync or /clean HTTP calls; no auto-sync on start");
 }
 
 export { createSyncHandler, startHttpServer } from "./server";
