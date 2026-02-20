@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         keenetic-geosite-sync
 // @namespace    http://tampermonkey.net/
-// @version      1.2.0
+// @version      1.2.1
 // @description  Autocomplete + API buttons for Keenetic DNS routes (v2fly/domain-list-community)
 // @homepage     https://github.com/yangirov/keenetic-geosite-sync
 // @match        http://192.168.1.1/*
@@ -10,7 +10,7 @@
 // @grant        GM_setValue
 // @grant        GM_deleteValue
 // @connect      api.github.com
-// @connect      192.168.1.1
+// @connect      192.168.1.1:3939
 // ==/UserScript==
 
 (function () {
@@ -125,9 +125,10 @@
     requestAnimationFrame(() => (el.style.opacity = '1'));
 
     setTimeout(() => {
-      if (!document.getElementById('__tm-notification')) return;
-      el.style.opacity = '0';
-      el.addEventListener('transitionend', () => el.remove(), { once: true });
+      const current = document.getElementById('__tm-notification');
+      if (!current) return;
+      current.style.opacity = '0';
+      current.addEventListener('transitionend', () => current.remove(), { once: true });
     }, 3500);
   }
 
@@ -187,16 +188,16 @@
   const dropdown = (() => {
     const el = document.createElement('div');
     Object.assign(el.style, {
-      position:   'fixed',
-      zIndex:     99999,
-      background: '#fff',
-      border:     '1px solid #ccc',
+      position:     'fixed',
+      zIndex:       99999,
+      background:   '#fff',
+      border:       '1px solid #ccc',
       borderRadius: '4px',
-      maxHeight:  '200px',
-      overflowY:  'auto',
-      fontSize:   '14px',
-      display:    'none',
-      boxShadow:  '0 4px 12px rgba(0,0,0,.15)',
+      maxHeight:    '200px',
+      overflowY:    'auto',
+      fontSize:     '14px',
+      display:      'none',
+      boxShadow:    '0 4px 12px rgba(0,0,0,.15)',
     });
     document.body.appendChild(el);
 
@@ -252,21 +253,25 @@
           method: 'GET',
           url: `${API_BASE}${url}`,
           onload(r) {
-            const ok = r.status >= 200 && r.status < 300;
-            let body = '';
-            try {
-              body = JSON.parse(r.responseText)?.message ?? r.responseText;
-            } catch {
-              body = r.responseText;
-            }
+            // Сервер возвращает plain text: "OK\n", "Sync already running\n" и т.д.
+            const ok   = r.status >= 200 && r.status < 300;
+            const body = (r.responseText || '').trim();
+
+            const statusLabels = {
+              429: 'Синхронизация уже выполняется',
+              404: 'Эндпоинт не найден',
+              500: 'Ошибка сервера',
+            };
+
+            const text = statusLabels[r.status] || body || String(r.status);
 
             showNotification(
-              `${ok ? '✅' : '❌'} ${label}: ${body || r.status}`,
+              `${ok ? '✅' : '❌'} ${label}: ${text}`,
               ok ? 'success' : 'error'
             );
           },
           onerror() {
-            showNotification(`❌ ${label}: сервер недоступен`, 'error');
+            showNotification(`❌ ${label}: сервер недоступен (порт 3939)`, 'error');
           },
         });
       };
@@ -279,9 +284,9 @@
 
   /* ================== STATE ================== */
 
-  let names         = null;
-  let currentInput  = null;
-  let lastPathname  = location.pathname;
+  let names        = null;
+  let currentInput = null;
+  let lastPathname = location.pathname;
 
   function teardown() {
     currentInput = null;
