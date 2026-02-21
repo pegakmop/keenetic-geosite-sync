@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         keenetic-geosite-sync
 // @namespace    http://tampermonkey.net/
-// @version      1.2.1
+// @version      1.3.4
 // @description  Autocomplete + API buttons for Keenetic DNS routes (v2fly/domain-list-community)
 // @homepage     https://github.com/yangirov/keenetic-geosite-sync
 // @match        http://192.168.1.1/*
@@ -10,7 +10,6 @@
 // @grant        GM_setValue
 // @grant        GM_deleteValue
 // @connect      api.github.com
-// @connect      192.168.1.1:3939
 // ==/UserScript==
 
 (function () {
@@ -33,7 +32,7 @@
   const API_ACTIONS = [
     { label: 'Health', url: '/health' },
     { label: 'Sync',   url: '/sync'   },
-    { label: 'Clean',  url: '/clean'  },
+    { label: 'Clean',  url: '/clean', confirm: 'Удалить все группы доменов с префиксом? Это действие нельзя отменить.' },
   ];
 
   const CACHE_KEY    = 'v2fly-domain-list-names';
@@ -80,7 +79,7 @@
 
   /* ================== NOTIFICATION ================== */
 
-  function showNotification(message, type = 'info') {
+  function showNotification(message, type = 'info', autoHide = true) {
     const existing = document.getElementById('__tm-notification');
     if (existing) existing.remove();
 
@@ -115,7 +114,6 @@
       cursor:       'pointer',
     });
 
-    // Закрытие по клику
     el.onclick = () => {
       el.style.opacity = '0';
       el.addEventListener('transitionend', () => el.remove(), { once: true });
@@ -124,12 +122,14 @@
     document.body.appendChild(el);
     requestAnimationFrame(() => (el.style.opacity = '1'));
 
-    setTimeout(() => {
-      const current = document.getElementById('__tm-notification');
-      if (!current) return;
-      current.style.opacity = '0';
-      current.addEventListener('transitionend', () => current.remove(), { once: true });
-    }, 3500);
+    if (autoHide) {
+      setTimeout(() => {
+        const current = document.getElementById('__tm-notification');
+        if (!current) return;
+        current.style.opacity = '0';
+        current.addEventListener('transitionend', () => current.remove(), { once: true });
+      }, 4000);
+    }
   }
 
   /* ================== DATA ================== */
@@ -218,6 +218,17 @@
 
   /* ================== API BUTTONS ================== */
 
+  async function callApi(label, url) {
+    showNotification(`⏳ ${label}…`, 'info', false);
+
+    try {
+      await fetch(`${API_BASE}${url}`, { mode: 'no-cors' });
+      showNotification(`✅ ${label}: запрос отправлен`, 'success');
+    } catch {
+      showNotification(`❌ ${label}: сервер недоступен`, 'error');
+    }
+  }
+
   function injectApiButtons() {
     if (!isDnsRoute()) return;
 
@@ -233,7 +244,7 @@
     spacer.style.width = '12px';
     container.appendChild(spacer);
 
-    API_ACTIONS.forEach(({ label, url }) => {
+    API_ACTIONS.forEach(({ label, url, confirm: confirmMsg }) => {
       const wrapper = template.cloneNode(true);
       const btn     = wrapper.querySelector('button');
       const span    = btn.querySelector('span');
@@ -247,33 +258,9 @@
         e.preventDefault();
         e.stopPropagation();
 
-        showNotification(`⏳ ${label}…`);
+        if (confirmMsg && !window.confirm(confirmMsg)) return;
 
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url: `${API_BASE}${url}`,
-          onload(r) {
-            // Сервер возвращает plain text: "OK\n", "Sync already running\n" и т.д.
-            const ok   = r.status >= 200 && r.status < 300;
-            const body = (r.responseText || '').trim();
-
-            const statusLabels = {
-              429: 'Синхронизация уже выполняется',
-              404: 'Эндпоинт не найден',
-              500: 'Ошибка сервера',
-            };
-
-            const text = statusLabels[r.status] || body || String(r.status);
-
-            showNotification(
-              `${ok ? '✅' : '❌'} ${label}: ${text}`,
-              ok ? 'success' : 'error'
-            );
-          },
-          onerror() {
-            showNotification(`❌ ${label}: сервер недоступен (порт 3939)`, 'error');
-          },
-        });
+        callApi(label, url);
       };
 
       container.appendChild(wrapper);
